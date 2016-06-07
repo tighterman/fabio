@@ -3,7 +3,7 @@ package main
 import (
 	"crypto/tls"
 	"crypto/x509"
-	"errors"
+	"encoding/pem"
 	"io/ioutil"
 	"log"
 	"net"
@@ -89,10 +89,23 @@ func newServer(l config.Listen, h http.Handler) (*http.Server, error) {
 			if err != nil {
 				return nil, err
 			}
+
+			// Issue #108: Temp patch to allow generated AWS API Gateway certs to be
+			// used for client cert authentication
 			pool := x509.NewCertPool()
-			if !pool.AppendCertsFromPEM(pemBlock) {
-				return nil, errors.New("failed to add client auth certs")
+			for p, rest := pem.Decode(pemBlock); p != nil; p, rest = pem.Decode(rest) {
+				cert, err := x509.ParseCertificate(p.Bytes)
+				if err != nil {
+					return nil, err
+				}
+				if cert.Issuer.CommonName == "ApiGateway" {
+					cert.BasicConstraintsValid = true
+					cert.IsCA = true
+					cert.KeyUsage = x509.KeyUsageCertSign
+				}
+				pool.AddCert(cert)
 			}
+
 			srv.TLSConfig.ClientCAs = pool
 			srv.TLSConfig.ClientAuth = tls.RequireAndVerifyClientCert
 		}
