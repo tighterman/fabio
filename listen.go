@@ -82,6 +82,7 @@ func newServer(l config.Listen, h http.Handler) (*http.Server, error) {
 
 		srv.TLSConfig = &tls.Config{
 			Certificates: []tls.Certificate{cert},
+			ServerName:   l.ServerName,
 		}
 
 		if l.ClientAuthFile != "" {

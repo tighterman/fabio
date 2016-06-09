@@ -221,6 +221,8 @@ func parseListen(addrs string, readTimeout, writeTimeout time.Duration) ([]Liste
 			l.Addr, l.CertFile, l.KeyFile, l.TLS = p[0], p[1], p[2], true
 		case 4:
 			l.Addr, l.CertFile, l.KeyFile, l.ClientAuthFile, l.TLS = p[0], p[1], p[2], p[3], true
+		case 5:
+			l.Addr, l.CertFile, l.KeyFile, l.ClientAuthFile, l.ServerName, l.TLS = p[0], p[1], p[2], p[3], p[4], true
 		default:
 			return nil, fmt.Errorf("invalid address %s", addr)
 		}

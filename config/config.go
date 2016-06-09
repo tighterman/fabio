@@ -16,6 +16,7 @@ type Listen struct {
 	KeyFile        string
 	CertFile       string
 	ClientAuthFile string
+	ServerName     string
 	TLS            bool
 	ReadTimeout    time.Duration
 	WriteTimeout   time.Duration
