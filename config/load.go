@@ -85,8 +85,6 @@ func load(p *properties.Properties) (cfg *Config, err error) {
 	f.BoolVar(&cfg.Registry.Consul.Register, "registry.consul.register.enabled", Default.Registry.Consul.Register, "register fabio in consul")
 	f.StringVar(&cfg.Registry.Consul.ServiceAddr, "registry.consul.register.addr", Default.Registry.Consul.ServiceAddr, "service registration address")
 	f.StringVar(&cfg.Registry.Consul.ServiceName, "registry.consul.register.name", Default.Registry.Consul.ServiceName, "service registration name")
-	f.Var((*tags)(&cfg.Registry.Consul.ServiceTags), "registry.consul.register.tags", "service registration tags")
-	f.Var((*tags)(&cfg.Registry.Consul.ServiceStatus), "registry.consul.service.status", "valid service status values")
 	f.DurationVar(&cfg.Registry.Consul.CheckInterval, "registry.consul.register.checkInterval", Default.Registry.Consul.CheckInterval, "service check interval")
 	f.DurationVar(&cfg.Registry.Consul.CheckTimeout, "registry.consul.register.checkTimeout", Default.Registry.Consul.CheckTimeout, "service check timeout")
 	f.IntVar(&cfg.Runtime.GOGC, "runtime.gogc", Default.Runtime.GOGC, "sets runtime.GOGC")
@@ -94,6 +92,12 @@ func load(p *properties.Properties) (cfg *Config, err error) {
 	f.StringVar(&cfg.UI.Addr, "ui.addr", Default.UI.Addr, "address the UI/API is listening on")
 	f.StringVar(&cfg.UI.Color, "ui.color", Default.UI.Color, "background color of the UI")
 	f.StringVar(&cfg.UI.Title, "ui.title", Default.UI.Title, "optional title for the UI")
+
+	cfg.Registry.Consul.ServiceTags = Default.Registry.Consul.ServiceTags
+	f.Var((*tags)(&cfg.Registry.Consul.ServiceTags), "registry.consul.register.tags", "service registration tags")
+
+	cfg.Registry.Consul.ServiceStatus = Default.Registry.Consul.ServiceStatus
+	f.Var((*tags)(&cfg.Registry.Consul.ServiceStatus), "registry.consul.service.status", "valid service status values")
 
 	var awsApiGWCertCN string
 	f.StringVar(&awsApiGWCertCN, "aws.apigw.cert.cn", "", "deprecated. use caupgcn=<CN> for cert source")
@@ -336,6 +340,7 @@ func (t *tags) String() string {
 }
 
 func (t *tags) Set(value string) error {
+	*t = nil // clobber default
 	for _, v := range splitSkipEmpty(value, ",") {
 		*t = append(*t, v)
 	}
