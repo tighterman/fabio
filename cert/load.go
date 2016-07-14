@@ -208,6 +208,6 @@ func upgradeCACertificate(cert *x509.Certificate, caUpgradeCN string) {
 		cert.BasicConstraintsValid = true
 		cert.IsCA = true
 		cert.KeyUsage = x509.KeyUsageCertSign
-		log.Print("[INFO] cert: Upgrading cert %s to CA cert", cert.Issuer.CommonName)
+		log.Printf("[INFO] cert: Upgrading cert %s to CA cert", cert.Issuer.CommonName)
 	}
 }

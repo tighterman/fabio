@@ -93,7 +93,6 @@ func initMetrics(cfg *config.Config) {
 }
 
 func initRuntime(cfg *config.Config) {
-	fmt.Println("%+v\n", cfg)
 	if os.Getenv("GOGC") == "" {
 		log.Print("[INFO] Setting GOGC=", cfg.Runtime.GOGC)
 		debug.SetGCPercent(cfg.Runtime.GOGC)
