@@ -13,6 +13,7 @@ import (
 
 	"github.com/cyberdelia/go-metrics-graphite"
 	"github.com/eBay/fabio/config"
+	riemann "github.com/pingles/go-metrics-riemann"
 	gometrics "github.com/rcrowley/go-metrics"
 )
 
@@ -33,15 +34,24 @@ func Init(cfg config.Metrics) error {
 	case "stdout":
 		log.Printf("[INFO] Sending metrics to stdout")
 		return initStdout(cfg.Interval)
+
 	case "graphite":
 		if cfg.GraphiteAddr == "" {
 			return errors.New("metrics: graphite addr missing")
 		}
-
 		log.Printf("[INFO] Sending metrics to Graphite on %s as %q", cfg.GraphiteAddr, pfx)
 		return initGraphite(cfg.GraphiteAddr, cfg.Interval)
+
+	case "riemann":
+		if cfg.RiemannAddr == "" {
+			return errors.New("metrics: riemann addr missing")
+		}
+		log.Printf("[INFO] Sending metrics to Riemann on %s as %q", cfg.RiemannAddr, pfx)
+		return initRiemann(cfg.RiemannAddr, cfg.Interval)
+
 	case "":
 		log.Printf("[INFO] Metrics disabled")
+
 	default:
 		log.Fatal("[FATAL] Invalid metrics target ", cfg.Target)
 	}
@@ -93,5 +103,10 @@ func initGraphite(addr string, interval time.Duration) error {
 
 	go graphite.Graphite(gometrics.DefaultRegistry, interval, pfx, a)
 	go graphite.Graphite(ServiceRegistry, interval, pfx, a)
+	return nil
+}
+
+func initRiemann(addr string, interval time.Duration) error {
+	go riemann.Report(gometrics.DefaultRegistry, interval, addr)
 	return nil
 }

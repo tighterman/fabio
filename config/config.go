@@ -69,6 +69,7 @@ type Metrics struct {
 	Prefix       string
 	Interval     time.Duration
 	GraphiteAddr string
+	RiemannAddr  string
 }
 
 type Registry struct {
