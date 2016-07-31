@@ -74,6 +74,6 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	p.requests.UpdateSince(start)
 	t.Timer.UpdateSince(start)
 	if p.logger != nil {
-		p.logger.Log(start, r)
+		p.logger.Log(start, time.Now(), r)
 	}
 }
