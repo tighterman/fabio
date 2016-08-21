@@ -9,22 +9,22 @@ import (
 	gometrics "github.com/rcrowley/go-metrics"
 )
 
-// Proxy is a dynamic reverse proxy.
-type Proxy struct {
+// httpProxy is a dynamic reverse proxy for HTTP and HTTPS protocols.
+type httpProxy struct {
 	tr       http.RoundTripper
 	cfg      config.Proxy
 	requests gometrics.Timer
 }
 
-func New(tr http.RoundTripper, cfg config.Proxy) *Proxy {
-	return &Proxy{
+func NewHTTPProxy(tr http.RoundTripper, cfg config.Proxy) http.Handler {
+	return &httpProxy{
 		tr:       tr,
 		cfg:      cfg,
 		requests: gometrics.GetOrRegisterTimer("requests", gometrics.DefaultRegistry),
 	}
 }
 
-func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (p *httpProxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if ShuttingDown() {
 		http.Error(w, "shutting down", http.StatusServiceUnavailable)
 		return

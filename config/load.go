@@ -211,13 +211,19 @@ func parseListen(cfg string, cs map[string]CertSource, readTimeout, writeTimeout
 
 	l = Listen{
 		Addr:         opts[0],
-		Scheme:       "http",
+		Proto:        "http",
 		ReadTimeout:  readTimeout,
 		WriteTimeout: writeTimeout,
 	}
 
+	var csName string
 	for k, v := range kvParse(cfg) {
 		switch k {
+		case "proto":
+			l.Proto = v
+			if l.Proto != "http" && l.Proto != "https" && l.Proto != "tcp+sni" {
+				return Listen{}, fmt.Errorf("unknown protocol %q", v)
+			}
 		case "rt": // read timeout
 			d, err := time.ParseDuration(v)
 			if err != nil {
@@ -231,14 +237,23 @@ func parseListen(cfg string, cs map[string]CertSource, readTimeout, writeTimeout
 			}
 			l.WriteTimeout = d
 		case "cs": // cert source
+			csName = v
 			c, ok := cs[v]
 			if !ok {
-				return Listen{}, fmt.Errorf("unknown certificate source %s", v)
+				return Listen{}, fmt.Errorf("unknown certificate source %q", v)
 			}
 			l.CertSource = c
-			l.Scheme = "https"
+			l.Proto = "https"
 		}
 	}
+
+	if csName != "" && l.Proto != "https" {
+		return Listen{}, fmt.Errorf("cert source requires proto 'https'")
+	}
+	if csName == "" && l.Proto == "https" {
+		return Listen{}, fmt.Errorf("proto 'https' requires cert source")
+	}
+
 	return
 }
 
@@ -247,13 +262,13 @@ func parseLegacyListen(cfg string, readTimeout, writeTimeout time.Duration) (l L
 
 	l = Listen{
 		Addr:         opts[0],
-		Scheme:       "http",
+		Proto:        "http",
 		ReadTimeout:  readTimeout,
 		WriteTimeout: writeTimeout,
 	}
 
 	if len(opts) > 1 {
-		l.Scheme = "https"
+		l.Proto = "https"
 		l.CertSource.Type = "file"
 		l.CertSource.CertPath = opts[1]
 	}
