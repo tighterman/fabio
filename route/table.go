@@ -58,9 +58,9 @@ func syncRegistry(t Table) {
 	timers := map[string]bool{}
 
 	// get all registered timers
-	metrics.ServiceRegistry.Each(func(name string, m interface{}) {
+	for _, name := range metrics.Names() {
 		timers[name] = false
-	})
+	}
 
 	// mark the ones from this table as active.
 	// this can also add new entries but we do not
@@ -77,7 +77,7 @@ func syncRegistry(t Table) {
 	// unregister inactive timers
 	for name, active := range timers {
 		if !active {
-			metrics.ServiceRegistry.Unregister(name)
+			metrics.Unregister(name)
 			log.Printf("[INFO] Unregistered timer %s", name)
 		}
 	}

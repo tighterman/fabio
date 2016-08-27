@@ -5,22 +5,22 @@ import (
 	"time"
 
 	"github.com/eBay/fabio/config"
-
-	gometrics "github.com/rcrowley/go-metrics"
+	"github.com/eBay/fabio/metrics"
+	"github.com/eBay/fabio/metrics/metricslib"
 )
 
 // Proxy is a dynamic reverse proxy.
 type Proxy struct {
 	tr       http.RoundTripper
 	cfg      config.Proxy
-	requests gometrics.Timer
+	requests metricslib.Timer
 }
 
 func New(tr http.RoundTripper, cfg config.Proxy) *Proxy {
 	return &Proxy{
 		tr:       tr,
 		cfg:      cfg,
-		requests: gometrics.GetOrRegisterTimer("requests", gometrics.DefaultRegistry),
+		requests: metrics.GetTimer("requests"),
 	}
 }
 

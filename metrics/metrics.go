@@ -1,63 +1,80 @@
+// Package metrics provides functions for collecting
+// and managing metrics through different metrics libraries.
+//
+// Metrics library implementations must implement the
+// Provider interface in the metricslib package.
+//
+// The current implementation supports only a single
+// metrics provider.
 package metrics
 
 import (
-	"errors"
-	"fmt"
 	"log"
-	"net"
 	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
 
-	"github.com/cyberdelia/go-metrics-graphite"
 	"github.com/eBay/fabio/config"
 	"github.com/eBay/fabio/exit"
-	"github.com/pubnub/go-metrics-statsd"
-	gometrics "github.com/rcrowley/go-metrics"
+	"github.com/eBay/fabio/metrics/gometrics"
+	"github.com/eBay/fabio/metrics/metricslib"
 )
 
-var pfx string
+// Provider stores the metrics library provider.
+var Provider metricslib.Provider = metricslib.NoopProvider{}
 
-// ServiceRegistry contains a separate metrics registry for
-// the timers for all targets to avoid conflicts
-// with globally registered timers.
-var ServiceRegistry = gometrics.NewRegistry()
+// Names returns the list of registered metrics acquired
+// through the GetXXX() functions in alphabetical order.
+func Names() []string { return Provider.Names() }
 
+// Unregister removes the registered metric and stops
+// reporting it to an external backend.
+func Unregister(name string) { Provider.Unregister(name) }
+
+// UnregisterAll removes all registered metrics and stops
+// reporting  them to an external backend.
+func UnregisterAll() { Provider.UnregisterAll() }
+
+// GetTimer returns a timer metric for the given name.
+// If the metric does not exist yet it should be created
+// otherwise the existing metric should be returned.
+func GetTimer(name string) metricslib.Timer { return Provider.GetTimer(name) }
+
+// prefix stores the prefix for all metrics names.
+var prefix string
+
+// Init configures the metrics library provider and starts reporting.
 func Init(cfg config.Metrics) error {
-	pfx = cfg.Prefix
-	if pfx == "default" {
-		pfx = defaultPrefix()
+	prefix = cfg.Prefix
+	if prefix == "default" {
+		prefix = defaultPrefix()
 	}
 
+	var err error
 	switch cfg.Target {
 	case "stdout":
 		log.Printf("[INFO] Sending metrics to stdout")
-		return initStdout(cfg.Interval)
+		Provider, err = gometrics.StdoutProvider(cfg.Interval)
+
 	case "graphite":
-		if cfg.GraphiteAddr == "" {
-			return errors.New("metrics: graphite addr missing")
-		}
+		log.Printf("[INFO] Sending metrics to Graphite on %s as %q", cfg.GraphiteAddr, prefix)
+		Provider, err = gometrics.GraphiteProvider(prefix, cfg.GraphiteAddr, cfg.Interval)
 
-		log.Printf("[INFO] Sending metrics to Graphite on %s as %q", cfg.GraphiteAddr, pfx)
-		return initGraphite(cfg.GraphiteAddr, cfg.Interval)
 	case "statsd":
-		if cfg.StatsDAddr == "" {
-			return errors.New("metrics: statsd addr missing")
-		}
-
-		log.Printf("[INFO] Sending metrics to StatsD on %s as %q", cfg.StatsDAddr, pfx)
-		return initStatsD(cfg.StatsDAddr, cfg.Interval)
+		log.Printf("[INFO] Sending metrics to StatsD on %s as %q", cfg.StatsDAddr, prefix)
+		Provider, err = gometrics.StatsDProvider(prefix, cfg.StatsDAddr, cfg.Interval)
 
 	case "":
 		log.Printf("[INFO] Metrics disabled")
+
 	default:
 		exit.Fatal("[FATAL] Invalid metrics target ", cfg.Target)
 	}
-	return nil
+	return err
 }
 
+// TargetName returns the metrics name from the given parameters.
 func TargetName(service, host, path string, targetURL *url.URL) string {
 	return strings.Join([]string{
 		clean(service),
@@ -67,6 +84,9 @@ func TargetName(service, host, path string, targetURL *url.URL) string {
 	}, ".")
 }
 
+// clean creates safe names for graphite reporting by replacing
+// some characters with underscores.
+// TODO(fs): This may need updating for other metrics backends.
 func clean(s string) string {
 	if s == "" {
 		return "_"
@@ -79,6 +99,8 @@ func clean(s string) string {
 // stubbed out for testing
 var hostname = os.Hostname
 
+// defaultPrefix determines the default metrics prefix from
+// the current hostname and the name of the executable.
 func defaultPrefix() string {
 	host, err := hostname()
 	if err != nil {
@@ -86,32 +108,4 @@ func defaultPrefix() string {
 	}
 	exe := filepath.Base(os.Args[0])
 	return clean(host) + "." + clean(exe)
-}
-
-func initStdout(interval time.Duration) error {
-	logger := log.New(os.Stderr, "localhost: ", log.Lmicroseconds)
-	go gometrics.Log(gometrics.DefaultRegistry, interval, logger)
-	go gometrics.Log(ServiceRegistry, interval, logger)
-	return nil
-}
-
-func initGraphite(addr string, interval time.Duration) error {
-	a, err := net.ResolveTCPAddr("tcp", addr)
-	if err != nil {
-		return fmt.Errorf("metrics: cannot connect to Graphite: %s", err)
-	}
-
-	go graphite.Graphite(gometrics.DefaultRegistry, interval, pfx, a)
-	go graphite.Graphite(ServiceRegistry, interval, pfx, a)
-	return nil
-}
-
-func initStatsD(addr string, interval time.Duration) error {
-	a, err := net.ResolveUDPAddr("udp", addr)
-	if err != nil {
-		return fmt.Errorf("metrics: cannot connect to StatsD: %s", err)
-	}
-	go statsd.StatsD(gometrics.DefaultRegistry, interval, pfx, a)
-	go statsd.StatsD(ServiceRegistry, interval, pfx, a)
-	return nil
 }
